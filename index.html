@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Shopify Bulk Product CSV Generator</title>
+  <style>
+    :root {
+      --primary: #008060;
+      --primary-hover: #004c3f;
+      --bg: #f6f6f7;
+      --surface: #ffffff;
+      --border: #d2d5d8;
+      --border-subtle: #e1e3e5;
+      --text: #202223;
+      --muted: #6d7175;
+      --danger: #d72c0d;
+      --danger-hover: #bc2200;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px 16px; }
+    .container { max-width: 1280px; margin: 0 auto; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: var(--surface); padding: 20px 24px; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    h1 { font-size: 22px; font-weight: 700; color: #111; }
+    p.subtitle { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 9px 16px; border-radius: var(--radius); font-weight: 600; font-size: 13px; cursor: pointer; border: 1px solid transparent; transition: all 0.15s ease-in-out; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: #fff; border-color: var(--border); color: var(--text); }
+    .btn-outline:hover { background: #f1f2f3; }
+    .btn-secondary { background: #e4e5e7; color: #202223; }
+    .btn-secondary:hover { background: #d2d5d8; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 5px; }
+    .btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .header-actions { display: flex; gap: 10px; }
+
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); position: relative; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 12px; margin-bottom: 16px; }
+    .card-title { font-size: 17px; font-weight: 700; color: var(--primary); }
+
+    .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 18px 0 10px 0; }
+    
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; margin-bottom: 12px; }
+    .grid-wide { grid-column: 1 / -1; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: #303030; margin-bottom: 4px; }
+    input[type="text"], input[type="number"], input[type="url"], select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--text); background: #fff; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+    textarea { resize: vertical; min-height: 60px; }
+
+    /* WEIGHT SELECTOR COMBO */
+    .weight-input-group { display: flex; gap: 6px; }
+    .weight-input-group input { flex: 1; }
+    .weight-input-group select { width: 105px; flex-shrink: 0; font-weight: 600; }
+
+    /* COLOR GROUPS */
+    .color-block { border: 1px solid var(--border-subtle); border-radius: 6px; background: #fafbfb; margin-bottom: 16px; padding: 14px; }
+    .color-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #ebebeb; }
+    .color-block-title { font-size: 14px; font-weight: 700; color: #333; display: flex; align-items: center; gap: 8px; }
+    .color-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid #aaa; background: #ddd; }
+
+    /* SUB-VARIATION TABLE */
+    .subvar-table { width: 100%; border-collapse: collapse; font-size: 12px; background: #ffffff; border: 1px solid var(--border-subtle); border-radius: 4px; margin-top: 8px; }
+    .subvar-table th, .subvar-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-subtle); text-align: left; vertical-align: middle; }
+    .subvar-table th { background: #f4f5f6; font-weight: 600; color: var(--muted); }
+    .subvar-table td input { font-size: 12px; padding: 6px 8px; }
+
+    .img-input-wrap { display: flex; align-items: center; gap: 6px; }
+    .img-thumb { width: 28px; height: 28px; border-radius: 4px; border: 1px solid #ccc; object-fit: cover; background: #eee; flex-shrink: 0; }
+
+    details.advanced-panel { margin-top: 16px; border: 1px dashed var(--border); border-radius: 6px; padding: 10px 14px; background: #fafbfb; }
+    details.advanced-panel summary { font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; user-select: none; }
+    details.advanced-panel summary:hover { color: var(--text); }
+    details.advanced-panel .grid { margin-top: 12px; }
+
+    .bottom-bar { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 16px 24px; border-radius: var(--radius); border: 1px solid var(--border); position: sticky; bottom: 16px; box-shadow: 0 -2px 10px rgba(0,0,0,0.06); margin-top: 24px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div>
+      <h1>Shopify Bulk Product CSV Generator</h1>
+      <p class="subtitle">Complete 57-column template compatibility with multi-unit weights, color variations & per-variant images</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-outline" onclick="loadSampleProduct()">Load Example Data</button>
+      <button type="button" class="btn btn-primary" onclick="exportShopifyCSV()">Download Shopify CSV</button>
+    </div>
+  </header>
+
+  <form id="productForm">
+    <div id="productsContainer"></div>
+
+    <div class="bottom-bar">
+      <button type="button" class="btn btn-outline" onclick="addProduct()">+ Add Product</button>
+      <span id="productCounter" style="font-size: 14px; color: var(--muted); font-weight: 500;">0 Products added</span>
+      <button type="button" class="btn btn-primary" onclick="exportShopifyCSV()">Download Shopify CSV</button>
+    </div>
+
+    <!-- SHOPIFY STANDARD TAXONOMY & PRODUCT TYPES DATALISTS -->
+    <datalist id="shopify-standard-categories">
+      <option value="Apparel & Accessories > Jewelry > Jewelry Sets">
+      <option value="Apparel & Accessories > Jewelry > Necklaces">
+      <option value="Apparel & Accessories > Jewelry > Earrings">
+      <option value="Apparel & Accessories > Jewelry > Rings">
+      <option value="Apparel & Accessories > Jewelry > Bracelets">
+      <option value="Apparel & Accessories > Jewelry > Brooches & Lapel Pins">
+      <option value="Apparel & Accessories > Jewelry > Body Jewelry">
+      <option value="Apparel & Accessories > Jewelry > Charms & Pendants">
+      <option value="Apparel & Accessories > Jewelry > Anklets">
+      <option value="Apparel & Accessories > Jewelry > Watch Accessories">
+      <option value="Apparel & Accessories > Clothing > Clothing Tops > T-Shirts">
+      <option value="Apparel & Accessories > Clothing > Clothing Tops > Shirts & Blouses">
+      <option value="Apparel & Accessories > Clothing > Clothing Tops > Hoodies & Sweatshirts">
+      <option value="Apparel & Accessories > Clothing > Clothing Tops > Sweaters & Cardigans">
+      <option value="Apparel & Accessories > Clothing > Clothing Tops > Tank Tops">
+      <option value="Apparel & Accessories > Clothing > Dresses">
+      <option value="Apparel & Accessories > Clothing > Pants">
+      <option value="Apparel & Accessories > Clothing > Jeans">
+      <option value="Apparel & Accessories > Clothing > Skirts">
+      <option value="Apparel & Accessories > Clothing > Shorts">
+      <option value="Apparel & Accessories > Clothing > Outerwear > Coats & Jackets">
+      <option value="Apparel & Accessories > Clothing > Activewear">
+      <option value="Apparel & Accessories > Clothing > Swimwear">
+      <option value="Apparel & Accessories > Clothing > Sleepwear & Loungewear">
+      <option value="Apparel & Accessories > Clothing > Suits & Blazers">
+      <option value="Apparel & Accessories > Clothing > Underwear & Socks">
+      <option value="Apparel & Accessories > Clothing > Traditional & Cultural Clothing">
+      <option value="Apparel & Accessories > Handbags, Wallets & Cases > Handbags">
+      <option value="Apparel & Accessories > Handbags, Wallets & Cases > Wallets & Money Clips">
+      <option value="Apparel & Accessories > Handbags, Wallets & Cases > Clutches & Evening Bags">
+      <option value="Apparel & Accessories > Handbags, Wallets & Cases > Backpacks">
+      <option value="Apparel & Accessories > Handbags, Wallets & Cases > Tote Bags">
+      <option value="Apparel & Accessories > Clothing Accessories > Belts">
+      <option value="Apparel & Accessories > Clothing Accessories > Hats & Caps">
+      <option value="Apparel & Accessories > Clothing Accessories > Scarves & Shawls">
+      <option value="Apparel & Accessories > Clothing Accessories > Sunglasses">
+      <option value="Apparel & Accessories > Clothing Accessories > Hair Accessories">
+      <option value="Apparel & Accessories > Clothing Accessories > Ties & Bowties">
+      <option value="Apparel & Accessories > Shoes > Sneakers & Athletic Shoes">
+      <option value="Apparel & Accessories > Shoes > Boots">
+      <option value="Apparel & Accessories > Shoes > Sandals & Slides">
+      <option value="Apparel & Accessories > Shoes > Heels & Pumps">
+      <option value="Apparel & Accessories > Shoes > Flats">
+      <option value="Apparel & Accessories > Shoes > Loafers & Slip-Ons">
+      <option value="Health & Beauty > Personal Care > Cosmetics > Perfumes & Colognes">
+      <option value="Health & Beauty > Personal Care > Cosmetics > Makeup">
+      <option value="Health & Beauty > Personal Care > Cosmetics > Skin Care">
+      <option value="Health & Beauty > Personal Care > Hair Care">
+      <option value="Health & Beauty > Personal Care > Bath & Body">
+      <option value="Health & Beauty > Health Care > Fitness & Nutrition">
+      <option value="Home & Garden > Decor > Clocks">
+      <option value="Home & Garden > Decor > Mirrors">
+      <option value="Home & Garden > Decor > Vases & Urns">
+      <option value="Home & Garden > Decor > Artwork & Wall Decor">
+      <option value="Home & Garden > Decor > Candles & Home Fragrance">
+      <option value="Home & Garden > Linens & Bedding > Bedding Sets">
+      <option value="Home & Garden > Kitchen & Dining > Cookware & Bakeware">
+      <option value="Home & Garden > Kitchen & Dining > Tableware">
+      <option value="Home & Garden > Lighting > Lamps & Lighting Fixtures">
+      <option value="Home & Garden > Furniture > Tables & Chairs">
+      <option value="Electronics > Communications > Mobile Phones & Smartphones">
+      <option value="Electronics > Audio > Headphones & Earphones">
+      <option value="Electronics > Audio > Speakers">
+      <option value="Electronics > Electronics Accessories > Cables & Adapters">
+      <option value="Media > Books > Print Books">
+      <option value="Media > Books > E-Books">
+      <option value="Media > Books > Audiobooks">
+      <option value="Sporting Goods > Exercise & Fitness > Yoga & Pilates">
+      <option value="Sporting Goods > Outdoor Recreation">
+      <option value="Toys & Games > Games & Puzzles">
+      <option value="Toys & Games > Toys">
+    </datalist>
+
+    <datalist id="shopify-product-types">
+      <option value="Jewelry">
+      <option value="Jewelry Set">
+      <option value="Necklace">
+      <option value="Earrings">
+      <option value="Ring">
+      <option value="Bracelet">
+      <option value="Bangle">
+      <option value="Pendant">
+      <option value="Anklet">
+      <option value="Choker">
+      <option value="Brooch">
+      <option value="T-Shirt">
+      <option value="Graphic shirt">
+      <option value="Shirt">
+      <option value="Dress">
+      <option value="Hoodie">
+      <option value="Sweatshirt">
+      <option value="Sweater">
+      <option value="Top">
+      <option value="Blouse">
+      <option value="Jeans">
+      <option value="Pants">
+      <option value="Trousers">
+      <option value="Shorts">
+      <option value="Skirt">
+      <option value="Jacket">
+      <option value="Coat">
+      <option value="Blazer">
+      <option value="Kurta">
+      <option value="Saree">
+      <option value="Lehenga">
+      <option value="Activewear">
+      <option value="Swimwear">
+      <option value="Shoes">
+      <option value="Sneakers">
+      <option value="Sandals">
+      <option value="Heels">
+      <option value="Handbag">
+      <option value="Tote Bag">
+      <option value="Clutch">
+      <option value="Wallet">
+      <option value="Backpack">
+      <option value="Belt">
+      <option value="Hat">
+      <option value="Cap">
+      <option value="Scarf">
+      <option value="Sunglasses">
+      <option value="Perfume">
+      <option value="Eau De Parfum">
+      <option value="Body Mist">
+      <option value="Lipstick">
+      <option value="Skincare">
+      <option value="Serum">
+      <option value="Moisturizer">
+      <option value="Home Decor">
+      <option value="Candle">
+      <option value="Digital book">
+      <option value="Physical book">
+      <option value="Gift Card">
+    </datalist>
+  </form>
+</div>
+
+<script>
+let productIndex = 0;
+
+const SHOPIFY_HEADERS = [
+  "Title", "URL handle", "Description", "Vendor", "Product category", "Type", "Tags",
+  "Published on online store", "Status", "SKU", "Barcode", "Option1 name", "Option1 value",
+  "Option1 Linked To", "Option2 name", "Option2 value", "Option2 Linked To", "Option3 name",
+  "Option3 value", "Option3 Linked To", "Price", "Compare-at price", "Cost per item",
+  "Charge tax", "Tax code", "Unit price total measure", "Unit price total measure unit",
+  "Unit price base measure", "Unit price base measure unit", "Inventory tracker",
+  "Inventory quantity", "Continue selling when out of stock", "Weight value (grams)",
+  "Weight unit for display", "Requires shipping", "Fulfillment service", "Product image URL",
+  "Image position", "Image alt text", "Variant image URL", "Gift card", "SEO title",
+  "SEO description", "Color (product.metafields.shopify.color-pattern)",
+  "Google Shopping / Google product category", "Google Shopping / Gender",
+  "Google Shopping / Age group", "Google Shopping / Manufacturer part number (MPN)",
+  "Google Shopping / Ad group name", "Google Shopping / Ads labels",
+  "Google Shopping / Condition", "Google Shopping / Custom product",
+  "Google Shopping / Custom label 0", "Google Shopping / Custom label 1",
+  "Google Shopping / Custom label 2", "Google Shopping / Custom label 3",
+  "Google Shopping / Custom label 4"
+];
+
+function addProduct(data = {}) {
+  productIndex++;
+  const id = productIndex;
+  const container = document.getElementById("productsContainer");
+
+  const card = document.createElement("div");
+  card.className = "card";
+  card.id = `product-card-${id}`;
+
+  const opt2Name = data.option2_name !== undefined ? data.option2_name : "Size";
+  const weightUnit = data.weight_unit || "g";
+
+  card.innerHTML = `
+    <div class="card-header">
+      <span class="card-title">Product #${id}</span>
+      <button type="button" class="btn btn-danger btn-sm" onclick="removeProduct(${id})">Delete Product</button>
+    </div>
+
+    <!-- CORE DETAILS -->
+    <div class="grid">
+      <div style="grid-column: span 2;">
+        <label>Product Title *</label>
+        <input type="text" name="title_${id}" placeholder="e.g. Myra Modern Asymmetrical Swan Necklace Set" value="${data.title || ''}" oninput="autoHandle(${id})" required>
+      </div>
+      <div>
+        <label>URL Handle (Slug) *</label>
+        <input type="text" name="handle_${id}" placeholder="e.g. myra-modern-asymmetrical-swan-necklace-set" value="${data.handle || ''}">
+      </div>
+      <div>
+        <label>Vendor</label>
+        <input type="text" name="vendor_${id}" placeholder="e.g. Look Good Jewellry" value="${data.vendor || ''}">
+      </div>
+      <div>
+        <label>Product Category (Shopify Taxonomy) ▾</label>
+        <input type="text" list="shopify-standard-categories" name="category_${id}" placeholder="Select or search category..." value="${data.category || ''}">
+      </div>
+      <div>
+        <label>Product Type ▾</label>
+        <input type="text" list="shopify-product-types" name="type_${id}" placeholder="Select or search type..." value="${data.type || ''}">
+      </div>
+      <div>
+        <label>Status</label>
+        <select name="status_${id}">
+          <option value="Active" ${data.status === 'Active' ? 'selected' : ''}>Active</option>
+          <option value="Draft" ${data.status === 'Draft' ? 'selected' : ''}>Draft</option>
+          <option value="Archived" ${data.status === 'Archived' ? 'selected' : ''}>Archived</option>
+        </select>
+      </div>
+      <div>
+        <label>Tags (Comma separated)</label>
+        <input type="text" name="tags_${id}" placeholder="Brass metal, CZ, Artificial Jewelry" value="${data.tags || ''}">
+      </div>
+      <div class="grid-wide">
+        <label>Product Description (HTML or Plain Text)</label>
+        <textarea name="description_${id}" placeholder="Detailed product specifications and description...">${data.description || ''}</textarea>
+      </div>
+    </div>
+
+    <!-- DEFAULTS -->
+    <div class="section-title">Pricing, Inventory, Options & Weight Units</div>
+    <div class="grid">
+      <div>
+        <label>Default Price</label>
+        <input type="number" step="0.01" name="price_${id}" placeholder="1425.00" value="${data.price || ''}">
+      </div>
+      <div>
+        <label>Compare-at Price</label>
+        <input type="number" step="0.01" name="compare_price_${id}" placeholder="1999.00" value="${data.compare_price || ''}">
+      </div>
+      <div>
+        <label>Base SKU Prefix</label>
+        <input type="text" name="base_sku_${id}" placeholder="e.g. MYRA-SET" value="${data.base_sku || ''}">
+      </div>
+      <div>
+        <label>Default Stock Quantity</label>
+        <input type="number" name="default_qty_${id}" placeholder="10" value="${data.default_qty || '10'}">
+      </div>
+      <div>
+        <label>Option 2 Name (Optional Sub-Variation)</label>
+        <input type="text" name="option2_name_${id}" placeholder="e.g. Size, Style, or Length (leave blank if none)" value="${opt2Name}" oninput="updateOpt2Label(${id})">
+      </div>
+      <div>
+        <label>Weight & Custom Unit Selector</label>
+        <div class="weight-input-group">
+          <input type="number" step="any" name="weight_${id}" placeholder="300" value="${data.weight || '300'}">
+          <select name="weight_unit_${id}">
+            <option value="g" ${weightUnit === 'g' ? 'selected' : ''}>g (Grams)</option>
+            <option value="mg" ${weightUnit === 'mg' ? 'selected' : ''}>mg (Milligrams)</option>
+            <option value="kg" ${weightUnit === 'kg' ? 'selected' : ''}>kg (Kilograms)</option>
+            <option value="lb" ${weightUnit === 'lb' ? 'selected' : ''}>lb (Pounds)</option>
+            <option value="oz" ${weightUnit === 'oz' ? 'selected' : ''}>oz (Ounces)</option>
+            <option value="ct" ${weightUnit === 'ct' ? 'selected' : ''}>ct (Carats)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLORS & SUB-VARIATIONS -->
+    <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+      <span>Color Variations & Sub-Options with Images</span>
+      <button type="button" class="btn btn-outline btn-sm" onclick="addColorBlock(${id})">+ Add Color</button>
+    </div>
+    <p style="font-size: 12px; color: var(--muted); margin-bottom: 12px;">
+      Add color groups and variation items. You can set a primary color image, or provide individual images per variation.
+    </p>
+
+    <div id="colors-wrapper-${id}"></div>
+
+    <!-- ADVANCED FIELDS -->
+    <details class="advanced-panel">
+      <summary>Advanced Shopify, SEO & Google Shopping Fields (Optional)</summary>
+      <div class="grid">
+        <div>
+          <label>Published on Online Store</label>
+          <select name="published_${id}">
+            <option value="TRUE">TRUE</option>
+            <option value="FALSE">FALSE</option>
+          </select>
+        </div>
+        <div>
+          <label>Inventory Tracker</label>
+          <input type="text" name="inventory_tracker_${id}" value="shopify">
+        </div>
+        <div>
+          <label>Continue selling when out of stock</label>
+          <select name="continue_selling_${id}">
+            <option value="DENY">DENY</option>
+            <option value="CONTINUE">CONTINUE</option>
+          </select>
+        </div>
+        <div>
+          <label>Requires Shipping</label>
+          <select name="requires_shipping_${id}">
+            <option value="TRUE">TRUE</option>
+            <option value="FALSE">FALSE</option>
+          </select>
+        </div>
+        <div>
+          <label>Fulfillment Service</label>
+          <input type="text" name="fulfillment_${id}" value="manual">
+        </div>
+        <div>
+          <label>Charge Tax</label>
+          <select name="charge_tax_${id}">
+            <option value="FALSE" selected>FALSE</option>
+            <option value="TRUE">TRUE</option>
+          </select>
+        </div>
+        <div style="grid-column: span 2;">
+          <label>SEO Title</label>
+          <input type="text" name="seo_title_${id}" placeholder="SEO Title" value="${data.seo_title || ''}">
+        </div>
+        <div class="grid-wide">
+          <label>SEO Description</label>
+          <input type="text" name="seo_description_${id}" placeholder="SEO Description" value="${data.seo_description || ''}">
+        </div>
+      </div>
+    </details>
+  `;
+
+  container.appendChild(card);
+
+  if (data.colors && data.colors.length > 0) {
+    data.colors.forEach(col => addColorBlock(id, col));
+  } else {
+    addColorBlock(id, { name: "White", subvars: [{ val: "Regular" }] });
+    addColorBlock(id, { name: "Red", subvars: [{ val: "Regular" }] });
+    addColorBlock(id, { name: "Green", subvars: [{ val: "Regular" }] });
+  }
+
+  updateCounter();
+}
+
+function addColorBlock(pId, colorData = {}) {
+  const wrapper = document.getElementById(`colors-wrapper-${pId}`);
+  const colorIndex = wrapper.children.length + 1;
+  const blockId = `color-block-${pId}-${colorIndex}`;
+
+  const block = document.createElement("div");
+  block.className = "color-block";
+  block.id = blockId;
+
+  const colorName = colorData.name || (colorIndex === 1 ? 'White' : colorIndex === 2 ? 'Red' : colorIndex === 3 ? 'Green' : `Color ${colorIndex}`);
+  const opt2Title = document.querySelector(`[name="option2_name_${pId}"]`)?.value.trim() || 'Sub-Option';
+
+  block.innerHTML = `
+    <div class="color-block-header">
+      <div class="color-block-title">
+        <span class="color-dot" style="background: ${colorName.toLowerCase()};"></span>
+        <span>Color #${colorIndex}: <strong class="color-title-label">${colorName}</strong></span>
+      </div>
+      <div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="addSubVar(${pId}, '${blockId}')">+ Add Variation (${opt2Title})</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="document.getElementById('${blockId}').remove()">Remove Color</button>
+      </div>
+    </div>
+
+    <div class="grid" style="grid-template-columns: 140px 1fr 1fr; margin-bottom: 8px;">
+      <div>
+        <label>Color Name *</label>
+        <input type="text" class="color-name-input" value="${colorName}" oninput="updateColorTitle(this)" placeholder="e.g. White">
+      </div>
+      <div>
+        <label>Default Color Image URL *</label>
+        <div class="img-input-wrap">
+          <img class="img-thumb color-img-thumb" src="${colorData.img || ''}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'28\\' height=\\'28\\' fill=\\'%23ccc\\'><rect width=\\'28\\' height=\\'28\\'/></svg>'">
+          <input type="url" class="color-img-input" value="${colorData.img || ''}" placeholder="https://cdn.shopify.com/.../white.png" oninput="updateThumb(this)">
+        </div>
+      </div>
+      <div>
+        <label>Image Alt Text</label>
+        <input type="text" class="color-alt-input" value="${colorData.alt || ''}" placeholder="Product image alt text">
+      </div>
+    </div>
+
+    <table class="subvar-table">
+      <thead>
+        <tr>
+          <th style="width: 130px;" class="opt2-th-label">${opt2Title} Value</th>
+          <th style="min-width: 220px;">Variation Image URL (Optional)</th>
+          <th style="width: 140px;">SKU</th>
+          <th style="width: 95px;">Price</th>
+          <th style="width: 85px;">Inventory</th>
+          <th style="width: 45px; text-align: center;">Action</th>
+        </tr>
+      </thead>
+      <tbody class="subvars-body"></tbody>
+    </table>
+  `;
+
+  wrapper.appendChild(block);
+
+  const subvarsBody = block.querySelector(".subvars-body");
+  const subvars = colorData.subvars && colorData.subvars.length > 0 ? colorData.subvars : [{}];
+  subvars.forEach(sv => addSubVarRow(subvarsBody, pId, colorName, sv));
+}
+
+function updateThumb(input) {
+  const wrap = input.closest(".img-input-wrap");
+  const thumb = wrap ? wrap.querySelector(".img-thumb") : null;
+  if (thumb) {
+    thumb.src = input.value || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="%23ccc"><rect width="28" height="28"/></svg>';
+  }
+}
+
+function updateColorTitle(input) {
+  const block = input.closest(".color-block");
+  const label = block.querySelector(".color-title-label");
+  const dot = block.querySelector(".color-dot");
+  label.innerText = input.value || "Untitled";
+  dot.style.background = input.value ? input.value.toLowerCase() : "#ddd";
+}
+
+function updateOpt2Label(pId) {
+  const opt2Name = document.querySelector(`[name="option2_name_${pId}"]`).value.trim() || 'Sub-Option';
+  const blockThs = document.querySelectorAll(`#product-card-${pId} .opt2-th-label`);
+  blockThs.forEach(th => th.innerText = `${opt2Name} Value`);
+}
+
+function addSubVar(pId, blockId) {
+  const block = document.getElementById(blockId);
+  const colorName = block.querySelector(".color-name-input").value.trim();
+  const tbody = block.querySelector(".subvars-body");
+  addSubVarRow(tbody, pId, colorName);
+}
+
+function addSubVarRow(tbody, pId, colorName, sv = {}) {
+  const tr = document.createElement("tr");
+  const defaultPrice = document.querySelector(`[name="price_${pId}"]`)?.value || '';
+  const defaultQty = document.querySelector(`[name="default_qty_${pId}"]`)?.value || '10';
+  const baseSku = document.querySelector(`[name="base_sku_${pId}"]`)?.value || '';
+
+  const skuVal = sv.sku || (baseSku && colorName ? `${baseSku}-${colorName.substring(0,3).toUpperCase()}${sv.val ? '-' + sv.val.substring(0,3).toUpperCase() : ''}` : '');
+  const imgVal = sv.img || '';
+
+  tr.innerHTML = `
+    <td><input type="text" class="subvar-val" value="${sv.val || ''}" placeholder="e.g. Small / Choker"></td>
+    <td>
+      <div class="img-input-wrap">
+        <img class="img-thumb subvar-img-thumb" src="${imgVal}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'28\\' height=\\'28\\' fill=\\'%23eee\\'><rect width=\\'28\\' height=\\'28\\'/></svg>'">
+        <input type="url" class="subvar-img" value="${imgVal}" placeholder="https://cdn.shopify.com/.../img.png" oninput="updateThumb(this)">
+      </div>
+    </td>
+    <td><input type="text" class="subvar-sku" value="${skuVal}" placeholder="SKU-001"></td>
+    <td><input type="number" step="0.01" class="subvar-price" value="${sv.price !== undefined ? sv.price : defaultPrice}" placeholder="1425.00"></td>
+    <td><input type="number" class="subvar-qty" value="${sv.qty !== undefined ? sv.qty : defaultQty}" placeholder="10"></td>
+    <td style="text-align: center;"><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()" style="padding: 2px 6px;">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function autoHandle(id) {
+  const titleInput = document.querySelector(`[name="title_${id}"]`);
+  const handleInput = document.querySelector(`[name="handle_${id}"]`);
+  if (!handleInput.dataset.manual) {
+    handleInput.value = titleInput.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+}
+
+function removeProduct(id) {
+  const card = document.getElementById(`product-card-${id}`);
+  if (card) {
+    card.remove();
+    updateCounter();
+  }
+}
+
+function updateCounter() {
+  const count = document.querySelectorAll('.card').length;
+  document.getElementById('productCounter').innerText = `${count} Product${count === 1 ? '' : 's'} added`;
+}
+
+function escapeCSV(val) {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\\n') || str.includes('\\r')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+function exportShopifyCSV() {
+  const cards = document.querySelectorAll('.card');
+  if (cards.length === 0) {
+    alert("Please add at least one product before exporting.");
+    return;
+  }
+
+  const rows = [];
+  rows.push(SHOPIFY_HEADERS.join(','));
+
+  cards.forEach(card => {
+    const id = card.id.replace('product-card-', '');
+    
+    const title = card.querySelector(`[name="title_${id}"]`).value.trim();
+    let handle = card.querySelector(`[name="handle_${id}"]`).value.trim();
+    if (!handle && title) handle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    
+    const description = card.querySelector(`[name="description_${id}"]`).value;
+    const vendor = card.querySelector(`[name="vendor_${id}"]`).value.trim();
+    const category = card.querySelector(`[name="category_${id}"]`).value.trim();
+    const type = card.querySelector(`[name="type_${id}"]`).value.trim();
+    const tags = card.querySelector(`[name="tags_${id}"]`).value.trim();
+    const status = card.querySelector(`[name="status_${id}"]`).value;
+    const published = card.querySelector(`[name="published_${id}"]`).value;
+    
+    const defaultPrice = card.querySelector(`[name="price_${id}"]`).value.trim();
+    const defaultCompare = card.querySelector(`[name="compare_price_${id}"]`).value.trim();
+    const defaultQty = card.querySelector(`[name="default_qty_${id}"]`).value.trim() || '0';
+    const baseSku = card.querySelector(`[name="base_sku_${id}"]`).value.trim();
+    const opt2Name = card.querySelector(`[name="option2_name_${id}"]`).value.trim();
+
+    // WEIGHT CONVERSION LOGIC
+    const rawWeight = parseFloat(card.querySelector(`[name="weight_${id}"]`).value) || 0;
+    const selectedUnit = card.querySelector(`[name="weight_unit_${id}"]`).value;
+    
+    let weightInGrams = rawWeight;
+    let displayUnit = selectedUnit;
+
+    if (selectedUnit === 'kg') {
+      weightInGrams = rawWeight * 1000;
+    } else if (selectedUnit === 'mg') {
+      weightInGrams = rawWeight / 1000;
+      displayUnit = 'g';
+    } else if (selectedUnit === 'lb') {
+      weightInGrams = rawWeight * 453.59237;
+    } else if (selectedUnit === 'oz') {
+      weightInGrams = rawWeight * 28.34952;
+    } else if (selectedUnit === 'ct') {
+      weightInGrams = rawWeight * 0.2;
+      displayUnit = 'g';
+    } else {
+      weightInGrams = rawWeight;
+      displayUnit = 'g';
+    }
+    
+    const weightValFormatted = Number(weightInGrams.toFixed(4)).toString();
+
+    const invTracker = card.querySelector(`[name="inventory_tracker_${id}"]`).value.trim();
+    const contSelling = card.querySelector(`[name="continue_selling_${id}"]`).value;
+    const reqShipping = card.querySelector(`[name="requires_shipping_${id}"]`).value;
+    const fulfillment = card.querySelector(`[name="fulfillment_${id}"]`).value.trim();
+    const chargeTax = card.querySelector(`[name="charge_tax_${id}"]`).value;
+
+    const seoTitle = card.querySelector(`[name="seo_title_${id}"]`).value.trim();
+    const seoDesc = card.querySelector(`[name="seo_description_${id}"]`).value.trim();
+
+    const colorBlocks = card.querySelectorAll('.color-block');
+    const variantList = [];
+    const colorNames = [];
+
+    colorBlocks.forEach(cb => {
+      const cName = cb.querySelector('.color-name-input').value.trim();
+      const parentImg = cb.querySelector('.color-img-input').value.trim();
+      const parentAlt = cb.querySelector('.color-alt-input').value.trim() || (cName ? `${title} - ${cName}` : '');
+      
+      if (cName) colorNames.push(cName);
+
+      const subvarRows = cb.querySelectorAll('.subvars-body tr');
+      if (subvarRows.length === 0) {
+        variantList.push({
+          color: cName || 'Default Color',
+          subvar: '',
+          sku: baseSku ? `${baseSku}-${cName.substring(0,3).toUpperCase()}` : '',
+          price: defaultPrice,
+          qty: defaultQty,
+          img: parentImg,
+          alt: parentAlt
+        });
+      } else {
+        subvarRows.forEach(sr => {
+          const sVal = sr.querySelector('.subvar-val').value.trim();
+          const sImg = sr.querySelector('.subvar-img').value.trim();
+          const sSku = sr.querySelector('.subvar-sku').value.trim();
+          const sPrice = sr.querySelector('.subvar-price').value.trim();
+          const sQty = sr.querySelector('.subvar-qty').value.trim();
+
+          const finalImg = sImg || parentImg;
+          const finalAlt = sVal ? `${title} - ${cName} (${sVal})` : parentAlt;
+
+          variantList.push({
+            color: cName || 'Default Color',
+            subvar: sVal,
+            sku: sSku,
+            price: sPrice || defaultPrice,
+            qty: sQty || defaultQty,
+            img: finalImg,
+            alt: finalAlt
+          });
+        });
+      }
+    });
+
+    if (variantList.length === 0) {
+      variantList.push({
+        color: 'Default Title',
+        subvar: '',
+        sku: baseSku,
+        price: defaultPrice,
+        qty: defaultQty,
+        img: '',
+        alt: ''
+      });
+    }
+
+    const allColorMetafield = colorNames.join('; ');
+    const hasOption2 = variantList.some(v => v.subvar !== '') || Boolean(opt2Name);
+    const isSingleDefault = (variantList.length === 1 && variantList[0].color === 'Default Title');
+
+    let imageCounter = 0;
+
+    variantList.forEach((v, vIndex) => {
+      const isFirstRow = (vIndex === 0);
+
+      let opt1NameCol = "";
+      let opt1LinkedCol = "";
+      let opt2NameCol = "";
+
+      if (isFirstRow) {
+        if (isSingleDefault) {
+          opt1NameCol = "Title";
+          opt1LinkedCol = "";
+        } else {
+          opt1NameCol = "Color";
+          opt1LinkedCol = "product.metafields.shopify.color-pattern";
+        }
+        if (hasOption2) {
+          opt2NameCol = opt2Name || "Variation";
+        }
+      }
+
+      if (v.img) {
+        imageCounter++;
+      }
+
+      const rowMap = {
+        "Title": isFirstRow ? title : "",
+        "URL handle": handle,
+        "Description": isFirstRow ? description : "",
+        "Vendor": isFirstRow ? vendor : "",
+        "Product category": isFirstRow ? category : "",
+        "Type": isFirstRow ? type : "",
+        "Tags": isFirstRow ? tags : "",
+        "Published on online store": isFirstRow ? published : "",
+        "Status": isFirstRow ? status : "",
+        "SKU": v.sku,
+        "Barcode": "",
+        "Option1 name": opt1NameCol,
+        "Option1 value": v.color,
+        "Option1 Linked To": opt1LinkedCol,
+        "Option2 name": opt2NameCol,
+        "Option2 value": hasOption2 ? (v.subvar || "Default") : "",
+        "Option2 Linked To": "",
+        "Option3 name": "",
+        "Option3 value": "",
+        "Option3 Linked To": "",
+        "Price": v.price,
+        "Compare-at price": defaultCompare,
+        "Cost per item": "",
+        "Charge tax": chargeTax,
+        "Tax code": "",
+        "Unit price total measure": "",
+        "Unit price total measure unit": "",
+        "Unit price base measure": "",
+        "Unit price base measure unit": "",
+        "Inventory tracker": invTracker,
+        "Inventory quantity": v.qty,
+        "Continue selling when out of stock": contSelling,
+        "Weight value (grams)": weightValFormatted,
+        "Weight unit for display": displayUnit,
+        "Requires shipping": reqShipping,
+        "Fulfillment service": fulfillment,
+        "Product image URL": v.img,
+        "Image position": v.img ? imageCounter : "",
+        "Image alt text": v.img ? v.alt : "",
+        "Variant image URL": v.img,
+        "Gift card": isFirstRow ? "FALSE" : "",
+        "SEO title": isFirstRow ? seoTitle : "",
+        "SEO description": isFirstRow ? seoDesc : "",
+        "Color (product.metafields.shopify.color-pattern)": isFirstRow ? allColorMetafield : "",
+        "Google Shopping / Google product category": "",
+        "Google Shopping / Gender": "",
+        "Google Shopping / Age group": isFirstRow ? "Adult (13+ years old)" : "",
+        "Google Shopping / Manufacturer part number (MPN)": "",
+        "Google Shopping / Ad group name": "",
+        "Google Shopping / Ads labels": "",
+        "Google Shopping / Condition": isFirstRow ? "New" : "",
+        "Google Shopping / Custom product": isFirstRow ? "FALSE" : "",
+        "Google Shopping / Custom label 0": "",
+        "Google Shopping / Custom label 1": "",
+        "Google Shopping / Custom label 2": "",
+        "Google Shopping / Custom label 3": "",
+        "Google Shopping / Custom label 4": ""
+      };
+
+      const rowValues = SHOPIFY_HEADERS.map(header => escapeCSV(rowMap[header] !== undefined ? rowMap[header] : ""));
+      rows.push(rowValues.join(','));
+    });
+  });
+
+  const csvContent = "\uFEFF" + rows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `shopify_bulk_import_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function loadSampleProduct() {
+  addProduct({
+    title: "Myra Modern Asymmetrical Swan American Diamond Necklace Set",
+    handle: "myra-modern-asymmetrical-swan-american-diamond-necklace-set",
+    vendor: "Look Good jewellry",
+    category: "Apparel & Accessories > Jewelry > Jewelry Sets",
+    type: "Jewellry",
+    status: "Active",
+    tags: "Brass metal, Artificial Jewellery, American Diamond",
+    description: "<h3>Product Specifications</h3><p>The Myra Necklace Set showcases modern haute couture elegance with an asymmetrical bypass collar.</p>",
+    price: "1425.00",
+    compare_price: "1999.00",
+    base_sku: "MYRA-SET",
+    default_qty: "10",
+    option2_name: "Size",
+    weight: "300",
+    weight_unit: "g",
+    seo_title: "Myra Modern Asymmetrical Swan American Diamond Necklace Set",
+    seo_description: "Shop the Myra Modern Asymmetrical Swan American Diamond Necklace Set.",
+    colors: [
+      {
+        name: "White",
+        img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/White_b9cdf447-2dd5-4ab6-82da-b4fd6d878c0f.png?v=1790505635",
+        alt: "myra-necklace-set-white",
+        subvars: [
+          { val: "Small", img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/White_b9cdf447-2dd5-4ab6-82da-b4fd6d878c0f.png?v=1790505635", sku: "MYRA-SET-WHT-S", price: "1425.00", qty: "10" },
+          { val: "Medium", img: "", sku: "MYRA-SET-WHT-M", price: "1425.00", qty: "15" },
+          { val: "Large", img: "", sku: "MYRA-SET-WHT-L", price: "1425.00", qty: "8" }
+        ]
+      },
+      {
+        name: "Red",
+        img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/Red_85a8c1b5-7bb7-4ef8-be48-7ae07a567e02.png?v=1790505635",
+        alt: "myra-necklace-set-red",
+        subvars: [
+          { val: "Small", img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/Red_85a8c1b5-7bb7-4ef8-be48-7ae07a567e02.png?v=1790505635", sku: "MYRA-SET-RED-S", price: "1425.00", qty: "10" },
+          { val: "Medium", img: "", sku: "MYRA-SET-RED-M", price: "1425.00", qty: "12" },
+          { val: "Large", img: "", sku: "MYRA-SET-RED-L", price: "1425.00", qty: "5" }
+        ]
+      },
+      {
+        name: "Green",
+        img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/Green_2a7bdcdc-ac6c-4a1c-bc53-0bfacbe8c9d0.png?v=1790505634",
+        alt: "myra-necklace-set-green",
+        subvars: [
+          { val: "Small", img: "https://cdn.shopify.com/s/files/1/0959/1092/0376/files/Green_2a7bdcdc-ac6c-4a1c-bc53-0bfacbe8c9d0.png?v=1790505634", sku: "MYRA-SET-GRN-S", price: "1425.00", qty: "10" },
+          { val: "Medium", img: "", sku: "MYRA-SET-GRN-M", price: "1425.00", qty: "14" },
+          { val: "Large", img: "", sku: "MYRA-SET-GRN-L", price: "1425.00", qty: "6" }
+        ]
+      }
+    ]
+  });
+}
+
+window.onload = function() {
+  addProduct();
+};
+</script>
+</body>
+</html>
